@@ -1,6 +1,6 @@
 {
   "name": "@enclave-markets/client",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "TypeScript client library for Enclave Markets API - Trade perpetual futures on the fastest DEX. Sign up with referral code: spaced",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

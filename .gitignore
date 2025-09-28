@@ -51,6 +51,11 @@ TESTING_REPORT.md
 CLAUDE.md
 ENCLAVE_API_IMPLEMENTATION_GUIDE.md
 
+# Test files with credentials - NEVER COMMIT
+test-api-discovery.ts
+test-api-discovery.js
+*-discovery.*
+
 # Include important documentation
 !README.md
 !CHANGELOG.md

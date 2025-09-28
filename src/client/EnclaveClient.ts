@@ -508,19 +508,22 @@ export class EnclaveClient {
   /**
    * Fetches funding rates for a market.
    *
+   * NOTE: The API does not support limit parameter.
+   * Returns the current funding rate and premium history.
+   *
    * @param market - Market symbol
-   * @param limit - Number of rates to fetch
-   * @returns Array of funding rates
+   * @returns Funding rate information
    *
    * @example
    * ```typescript
-   * const rates = await client.getFundingRates('BTC-USD.P', 24);
+   * const rates = await client.getFundingRates('BTC-USD.P');
    * ```
    */
-  public async getFundingRates(market: string, limit = 100): Promise<FundingRate[]> {
+  public async getFundingRates(market: string): Promise<FundingRate[]> {
+    // API doesn't support limit parameter
     return this.requestWithWrapper<FundingRate[]>(
       'GET',
-      `/v1/perps/funding_rates?market=${market}&limit=${limit}`,
+      `/v1/perps/funding_rates?market=${market}`,
     );
   }
 
@@ -546,7 +549,7 @@ export class EnclaveClient {
    * Fetches the order book for a market.
    *
    * @param market - Market symbol
-   * @param depth - Number of price levels
+   * @param depth - Number of price levels (optional)
    * @returns Order book snapshot
    *
    * @example
@@ -557,26 +560,43 @@ export class EnclaveClient {
    * ```
    */
   public async getOrderBook(market: string, depth = 20): Promise<OrderBook> {
-    return this.requestWithWrapper<OrderBook>(
-      'GET',
-      `/v1/perps/orderbook?market=${market}&depth=${depth}`,
-    );
+    // The actual endpoint is /v1/perps/depth, not /v1/perps/orderbook
+    const params = new URLSearchParams({ market });
+    if (depth) {
+      params.append('depth', depth.toString());
+    }
+    return this.requestWithWrapper<OrderBook>('GET', `/v1/perps/depth?${params.toString()}`);
   }
 
   /**
    * Fetches ticker information for markets.
    *
+   * NOTE: The ticker endpoint (/v1/ticker) is only available for spot markets.
+   * For perpetual markets, use getTrades() to get the latest price information.
+   *
    * @param market - Optional market filter
    * @returns Ticker or array of tickers
+   * @throws Error - Not available for perpetual markets
    *
    * @example
    * ```typescript
-   * const ticker = await client.getTicker('BTC-USD.P');
-   * const allTickers = await client.getTicker();
+   * // For perpetual markets, use trades instead:
+   * const trades = await client.getTrades('BTC-USD.P', 1);
+   * const latestPrice = trades[0]?.price;
+   *
+   * // For orderbook bid/ask, use:
+   * const orderBook = await client.getOrderBook('BTC-USD.P', 1);
+   * const bestBid = orderBook.bids[0]?.[0];
+   * const bestAsk = orderBook.asks[0]?.[0];
    * ```
    */
-  public async getTicker(market?: string): Promise<Ticker | Ticker[]> {
-    const path = market ? `/v1/perps/ticker?market=${market}` : '/v1/perps/ticker';
-    return this.requestWithWrapper<Ticker | Ticker[]>('GET', path);
+  public getTicker(_market?: string): Promise<Ticker | Ticker[]> {
+    // Ticker endpoint only exists for spot markets (/v1/ticker), not for perps
+    return Promise.reject(
+      new Error(
+        'Ticker endpoint is not available for perpetual markets. ' +
+          'Use getTrades() for latest price or getOrderBook() for bid/ask spreads.',
+      ),
+    );
   }
 }
