@@ -44,10 +44,18 @@ lerna-debug.log*
 Thumbs.db
 
 # Project specific - exclude markdown and log files
-*.md
+*.log
+
+# Development markdown files to exclude
+TESTING_REPORT.md
+CLAUDE.md
+ENCLAVE_API_IMPLEMENTATION_GUIDE.md
+
+# Include important documentation
 !README.md
 !CHANGELOG.md
 !LICENSE.md
+!REFERRAL.md
 
 # TypeScript
 *.tsbuildinfo

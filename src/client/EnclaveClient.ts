@@ -3,7 +3,9 @@ import * as https from 'https';
 import { URL } from 'url';
 import {
   API_URLS,
+  ApiBalance,
   ApiError,
+  ApiWrapper,
   Balance,
   ClientConfig,
   CreateOrderOptions,
@@ -11,6 +13,7 @@ import {
   Environment,
   FundingRate,
   Market,
+  MarketsResponse,
   Order,
   OrderBook,
   OrderSide,
@@ -44,6 +47,17 @@ export class EnclaveClient {
     this.debug = config.debug ?? false;
     this.maxRetries = config.maxRetries ?? 3;
     this.retryDelay = config.retryDelay ?? 1000;
+  }
+
+  /**
+   * Makes a request and automatically unwraps the API response wrapper
+   */
+  private async requestWithWrapper<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const response = await this.request<ApiWrapper<T>>(method, path, body);
+    if (!response.success) {
+      throw new Error(response.error ?? 'Request failed');
+    }
+    return response.result;
   }
 
   private async request<T>(method: string, path: string, body?: unknown, attempt = 1): Promise<T> {
@@ -168,7 +182,8 @@ export class EnclaveClient {
       return this.marketsCache;
     }
 
-    const markets = await this.request<Market[]>('GET', '/v1/markets');
+    const response = await this.requestWithWrapper<MarketsResponse>('GET', '/v1/markets');
+    const markets = response.perps.tradingPairs;
     this.marketsCache = markets;
     this.marketsCacheTime = Date.now();
     return markets;
@@ -238,7 +253,7 @@ export class EnclaveClient {
       ...options,
     };
 
-    return this.request<Order>('POST', '/v1/perps/orders', body);
+    return this.requestWithWrapper<Order>('POST', '/v1/perps/orders', body);
   }
 
   /**
@@ -290,7 +305,7 @@ export class EnclaveClient {
       body.size = roundedSize.toString();
     }
 
-    return this.request<Order>('POST', '/v1/perps/orders', body);
+    return this.requestWithWrapper<Order>('POST', '/v1/perps/orders', body);
   }
 
   /**
@@ -305,7 +320,7 @@ export class EnclaveClient {
    * ```
    */
   public async cancelOrder(orderId: string): Promise<Order> {
-    return this.request<Order>('DELETE', `/v1/perps/orders/${orderId}`);
+    return this.requestWithWrapper<Order>('DELETE', `/v1/perps/orders/${orderId}`);
   }
 
   /**
@@ -325,7 +340,7 @@ export class EnclaveClient {
    */
   public async cancelAllOrders(market?: string): Promise<Order[]> {
     const params = market ? `?market=${market}` : '';
-    return this.request<Order[]>('DELETE', `/v1/perps/orders${params}`);
+    return this.requestWithWrapper<Order[]>('DELETE', `/v1/perps/orders${params}`);
   }
 
   /**
@@ -342,7 +357,7 @@ export class EnclaveClient {
    */
   public async getOrders(market?: string): Promise<Order[]> {
     const params = market ? `?market=${market}` : '';
-    return this.request<Order[]>('GET', `/v1/perps/orders${params}`);
+    return this.requestWithWrapper<Order[]>('GET', `/v1/perps/orders${params}`);
   }
 
   /**
@@ -357,7 +372,7 @@ export class EnclaveClient {
    * ```
    */
   public async getOrder(orderId: string): Promise<Order> {
-    return this.request<Order>('GET', `/v1/perps/orders/${orderId}`);
+    return this.requestWithWrapper<Order>('GET', `/v1/perps/orders/${orderId}`);
   }
 
   /**
@@ -374,7 +389,7 @@ export class EnclaveClient {
    */
   public async getPositions(market?: string): Promise<Position[]> {
     const params = market ? `?market=${market}` : '';
-    return this.request<Position[]>('GET', `/v1/perps/positions${params}`);
+    return this.requestWithWrapper<Position[]>('GET', `/v1/perps/positions${params}`);
   }
 
   /**
@@ -424,7 +439,7 @@ export class EnclaveClient {
       ...options,
     };
 
-    return this.request<StopOrder>('POST', '/v1/perps/stop_order', body);
+    return this.requestWithWrapper<StopOrder>('POST', '/v1/perps/stop_order', body);
   }
 
   /**
@@ -439,7 +454,7 @@ export class EnclaveClient {
    * ```
    */
   public async cancelStopOrder(stopOrderId: string): Promise<StopOrder> {
-    return this.request<StopOrder>('DELETE', `/v1/perps/stop_order/${stopOrderId}`);
+    return this.requestWithWrapper<StopOrder>('DELETE', `/v1/perps/stop_order/${stopOrderId}`);
   }
 
   /**
@@ -455,7 +470,7 @@ export class EnclaveClient {
    */
   public async getStopOrders(market?: string): Promise<StopOrder[]> {
     const params = market ? `?market=${market}` : '';
-    return this.request<StopOrder[]>('GET', `/v1/perps/stop_order${params}`);
+    return this.requestWithWrapper<StopOrder[]>('GET', `/v1/perps/stop_order${params}`);
   }
 
   /**
@@ -470,7 +485,24 @@ export class EnclaveClient {
    * ```
    */
   public async getBalance(): Promise<Balance> {
-    return this.request<Balance>('GET', '/v1/perps/balance');
+    const apiBalance = await this.requestWithWrapper<ApiBalance>('GET', '/v1/perps/balance');
+
+    // Map API response to our Balance interface
+    return {
+      asset: 'USDT', // Enclave uses USDT as base asset
+      available: apiBalance.availableMargin,
+      locked: apiBalance.totalOrderMargin || '0',
+      total: apiBalance.walletBalance,
+      inPositions: apiBalance.totalPositionValue || '0',
+      unrealizedPnl: apiBalance.unrealizedPnl,
+      marginBalance: apiBalance.marginBalance,
+      maintenanceMargin: apiBalance.maintenanceMargin,
+      initialMargin: apiBalance.initialMargin,
+      availableMargin: apiBalance.availableMargin,
+      walletBalance: apiBalance.walletBalance,
+      totalPositionValue: apiBalance.totalPositionValue,
+      totalOrderMargin: apiBalance.totalOrderMargin,
+    };
   }
 
   /**
@@ -486,7 +518,7 @@ export class EnclaveClient {
    * ```
    */
   public async getFundingRates(market: string, limit = 100): Promise<FundingRate[]> {
-    return this.request<FundingRate[]>(
+    return this.requestWithWrapper<FundingRate[]>(
       'GET',
       `/v1/perps/funding_rates?market=${market}&limit=${limit}`,
     );
@@ -507,7 +539,7 @@ export class EnclaveClient {
   public async getTrades(market?: string, limit = 100): Promise<Trade[]> {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (market) params.append('market', market);
-    return this.request<Trade[]>('GET', `/v1/perps/trades?${params.toString()}`);
+    return this.requestWithWrapper<Trade[]>('GET', `/v1/perps/trades?${params.toString()}`);
   }
 
   /**
@@ -525,7 +557,10 @@ export class EnclaveClient {
    * ```
    */
   public async getOrderBook(market: string, depth = 20): Promise<OrderBook> {
-    return this.request<OrderBook>('GET', `/v1/markets/${market}/orderbook?depth=${depth}`);
+    return this.requestWithWrapper<OrderBook>(
+      'GET',
+      `/v1/perps/orderbook?market=${market}&depth=${depth}`,
+    );
   }
 
   /**
@@ -541,7 +576,7 @@ export class EnclaveClient {
    * ```
    */
   public async getTicker(market?: string): Promise<Ticker | Ticker[]> {
-    const path = market ? `/v1/markets/${market}/ticker` : '/v1/markets/ticker';
-    return this.request<Ticker | Ticker[]>('GET', path);
+    const path = market ? `/v1/perps/ticker?market=${market}` : '/v1/perps/ticker';
+    return this.requestWithWrapper<Ticker | Ticker[]>('GET', path);
   }
 }

@@ -122,6 +122,9 @@ export interface Balance {
   maintenanceMargin: string;
   initialMargin: string;
   availableMargin: string;
+  walletBalance?: string; // Add API field
+  totalPositionValue?: string;
+  totalOrderMargin?: string;
 }
 
 export interface FundingRate {
@@ -186,6 +189,32 @@ export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: ApiError;
+}
+
+// Actual API response wrapper used by Enclave
+export interface ApiWrapper<T> {
+  success: boolean;
+  result: T;
+  error?: string;
+}
+
+// Markets response structure
+export interface MarketsResponse {
+  perps: {
+    tradingPairs: Market[];
+  };
+}
+
+// Balance response structure (with actual field names from API)
+export interface ApiBalance {
+  walletBalance: string;
+  availableMargin: string;
+  unrealizedPnl: string;
+  marginBalance: string;
+  initialMargin: string;
+  maintenanceMargin: string;
+  totalPositionValue: string;
+  totalOrderMargin: string;
 }
 
 export interface ApiError {
