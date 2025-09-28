@@ -1,0 +1,51 @@
+# Source files (only dist is needed)
+src/
+docs/examples/
+
+# Test files
+**/__tests__/
+**/*.test.ts
+**/*.test.js
+.env.test
+.env.test.example
+
+# Config files
+.github/
+.eslintrc.json
+.prettierrc
+jest.config.js
+tsconfig.json
+.editorconfig
+
+# Development files
+*.log
+*.tgz
+CLAUDE.md
+ENCLAVE_API_IMPLEMENTATION_GUIDE.md
+TESTING_REPORT.md
+test-*.ts
+test-*.js
+
+# Git files
+.gitignore
+.git/
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts (except dist)
+coverage/
+.nyc_output/
+
+# Misc
+pnpm-lock.yaml
+yarn.lock
+.npmrc

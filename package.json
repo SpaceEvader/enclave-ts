@@ -1,5 +1,5 @@
 {
-  "name": "@enclave-markets/client",
+  "name": "enclave-ts",
   "version": "0.4.0",
   "description": "TypeScript client library for Enclave Markets API - Trade perpetual futures on the fastest DEX. Sign up with referral code: spaced",
   "main": "dist/index.js",
@@ -47,6 +47,10 @@
     "url": "https://github.com/SpaceEvader/enclave-ts/issues"
   },
   "homepage": "https://github.com/SpaceEvader/enclave-ts#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "dependencies": {
     "decimal.js": "^10.4.3",
     "ws": "^8.16.0"

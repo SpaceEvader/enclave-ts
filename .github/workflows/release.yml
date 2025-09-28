@@ -83,13 +83,13 @@ jobs:
             ## Installation
 
             ```bash
-            npm install @enclave-markets/client@${{ env.VERSION }}
+            npm install enclave-ts@${{ env.VERSION }}
             ```
 
             or
 
             ```bash
-            pnpm add @enclave-markets/client@${{ env.VERSION }}
+            pnpm add enclave-ts@${{ env.VERSION }}
             ```
           draft: false
           prerelease: false
