@@ -48,18 +48,23 @@ async function main() {
     console.log(`Available margin: ${balance.availableMargin}`);
     console.log(`Total balance: ${balance.total}`);
 
-    // 3. Get current price
+    // 3. Get current price (ticker not available for perps)
     console.log('\nFetching current price...');
-    const ticker = await client.getTicker('BTC-USD.P');
-    if (!Array.isArray(ticker)) {
-      console.log(`Current BTC price: Bid ${ticker.bid}, Ask ${ticker.ask}`);
-    }
+    const orderBook = await client.getOrderBook('BTC-USD.P', 1);
+    const bestBid = orderBook.bids[0]?.[0] || '0';
+    const bestAsk = orderBook.asks[0]?.[0] || '0';
+    console.log(`Current BTC price: Bid ${bestBid}, Ask ${bestAsk}`);
 
     // 4. Place a limit buy order (below current price)
     console.log('\nPlacing limit buy order...');
-    const currentPrice = new Decimal(ticker.ask);
+    const currentPrice = new Decimal(bestAsk);
     const buyPrice = currentPrice.mul(0.99); // 1% below current price
-    const buySize = new Decimal('0.001'); // 0.001 BTC
+
+    // Get market info to find minimum size
+    const markets = await client.getMarkets();
+    const btcMarket = markets.find(m => m.market === 'BTC-USD.P');
+    const minSize = btcMarket?.baseIncrement || '0.0001';
+    const buySize = new Decimal(minSize); // Use minimum size
 
     const buyOrder = await client.createLimitOrder(
       'BTC-USD.P',

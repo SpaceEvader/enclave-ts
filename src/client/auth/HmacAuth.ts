@@ -57,4 +57,21 @@ export class HmacAuth {
       Buffer.from(expectedSignature, 'hex'),
     );
   }
+
+  /**
+   * Signs a message for WebSocket authentication.
+   *
+   * @param message - The message to sign
+   * @returns HMAC signature
+   */
+  public sign(message: string): string {
+    return crypto.createHmac('sha256', this.apiSecret).update(message).digest('hex');
+  }
+
+  /**
+   * Get the API key (needed for WebSocket auth).
+   */
+  public getApiKey(): string {
+    return this.apiKey;
+  }
 }

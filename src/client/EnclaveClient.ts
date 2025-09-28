@@ -28,6 +28,7 @@ import { HmacAuth } from './auth/HmacAuth';
 import { roundDown } from '../utils/rounding';
 import { ApiMarketsResponse, ApiTrade, ApiOrderBook } from '../types/api-responses';
 import { adaptMarketsResponse, adaptTrade, adaptOrderBook } from '../utils/adapters';
+import { WebSocketClient, WebSocketChannel, MessageHandler } from './websocket/WebSocketClient';
 
 export class EnclaveClient {
   private readonly baseUrl: string;
@@ -39,10 +40,12 @@ export class EnclaveClient {
   private marketsCache?: Market[];
   private marketsCacheTime?: number;
   private readonly CACHE_DURATION = 60000; // 1 minute
+  private wsClient?: WebSocketClient;
+  private readonly environment: Environment;
 
   constructor(config: ClientConfig = {}) {
-    const environment = config.environment ?? Environment.PROD_PERMISSIONLESS;
-    this.baseUrl = API_URLS[environment];
+    this.environment = config.environment ?? Environment.PROD_PERMISSIONLESS;
+    this.baseUrl = API_URLS[this.environment];
     this.auth = config.auth ? new HmacAuth(config.auth.apiKey, config.auth.apiSecret) : undefined;
     this.timeout = config.timeout ?? 30000;
     this.debug = config.debug ?? false;
@@ -606,8 +609,217 @@ export class EnclaveClient {
     return Promise.reject(
       new Error(
         'Ticker endpoint is not available for perpetual markets. ' +
-          'Use getTrades() for latest price or getOrderBook() for bid/ask spreads.',
+          'Use getLatestPrice() or getBidAsk() instead.',
       ),
     );
+  }
+
+  /**
+   * Helper method to get the latest traded price for a market.
+   *
+   * @param market - Market symbol
+   * @returns Latest traded price as a string
+   *
+   * @example
+   * ```typescript
+   * const price = await client.getLatestPrice('BTC-USD.P');
+   * console.log(`Current BTC price: ${price}`);
+   * ```
+   */
+  public async getLatestPrice(market: string): Promise<string | null> {
+    const trades = await this.getTrades(market, 1);
+    return trades[0]?.price || null;
+  }
+
+  /**
+   * Helper method to get the current bid and ask prices.
+   *
+   * @param market - Market symbol
+   * @returns Object with bid, ask, and spread
+   *
+   * @example
+   * ```typescript
+   * const { bid, ask, spread } = await client.getBidAsk('BTC-USD.P');
+   * console.log(`Bid: ${bid}, Ask: ${ask}, Spread: ${spread}`);
+   * ```
+   */
+  public async getBidAsk(
+    market: string,
+  ): Promise<{ bid: string | null; ask: string | null; spread: string | null }> {
+    const orderBook = await this.getOrderBook(market, 1);
+
+    const bid = orderBook.bids[0]?.[0] || null;
+    const ask = orderBook.asks[0]?.[0] || null;
+
+    let spread: string | null = null;
+    if (bid && ask) {
+      spread = new Decimal(ask).minus(bid).toString();
+    }
+
+    return { bid, ask, spread };
+  }
+
+  // ==================== WebSocket Methods ====================
+
+  /**
+   * Initialize WebSocket connection for real-time data.
+   *
+   * @returns Promise that resolves when connected
+   *
+   * @example
+   * ```typescript
+   * await client.connectWebSocket();
+   * client.subscribeTrades('BTC-USD.P', (trade) => {
+   *   console.log('New trade:', trade);
+   * });
+   * ```
+   */
+  public async connectWebSocket(): Promise<void> {
+    if (!this.wsClient) {
+      this.wsClient = new WebSocketClient({
+        auth: this.auth,
+        environment: this.environment,
+        debug: this.debug,
+      });
+    }
+
+    return this.wsClient.connect();
+  }
+
+  /**
+   * Disconnect WebSocket connection.
+   */
+  public disconnectWebSocket(): void {
+    if (this.wsClient) {
+      this.wsClient.disconnect();
+      this.wsClient = undefined;
+    }
+  }
+
+  /**
+   * Subscribe to real-time trade updates.
+   *
+   * @param market - Market symbol
+   * @param handler - Callback function for trade updates
+   *
+   * @example
+   * ```typescript
+   * client.subscribeTrades('BTC-USD.P', (trade) => {
+   *   console.log(`Trade: ${trade.size} @ ${trade.price}`);
+   * });
+   * ```
+   */
+  public subscribeTrades(market: string, handler: MessageHandler): void {
+    if (!this.wsClient) {
+      throw new Error('WebSocket not connected. Call connectWebSocket() first.');
+    }
+    this.wsClient.subscribe(WebSocketChannel.TRADES, handler, market);
+  }
+
+  /**
+   * Unsubscribe from trade updates.
+   */
+  public unsubscribeTrades(market: string, handler?: MessageHandler): void {
+    if (this.wsClient) {
+      this.wsClient.unsubscribe(WebSocketChannel.TRADES, handler, market);
+    }
+  }
+
+  /**
+   * Subscribe to real-time order book updates.
+   *
+   * @param market - Market symbol
+   * @param handler - Callback function for order book updates
+   *
+   * @example
+   * ```typescript
+   * client.subscribeOrderBook('BTC-USD.P', (book) => {
+   *   console.log(`Best bid: ${book.bids[0][0]}, Best ask: ${book.asks[0][0]}`);
+   * });
+   * ```
+   */
+  public subscribeOrderBook(market: string, handler: MessageHandler): void {
+    if (!this.wsClient) {
+      throw new Error('WebSocket not connected. Call connectWebSocket() first.');
+    }
+    this.wsClient.subscribe(WebSocketChannel.ORDERBOOK, handler, market);
+  }
+
+  /**
+   * Unsubscribe from order book updates.
+   */
+  public unsubscribeOrderBook(market: string, handler?: MessageHandler): void {
+    if (this.wsClient) {
+      this.wsClient.unsubscribe(WebSocketChannel.ORDERBOOK, handler, market);
+    }
+  }
+
+  /**
+   * Subscribe to real-time order updates (requires authentication).
+   *
+   * @param handler - Callback function for order updates
+   *
+   * @example
+   * ```typescript
+   * client.subscribeOrders((order) => {
+   *   console.log(`Order ${order.id}: ${order.status}`);
+   * });
+   * ```
+   */
+  public subscribeOrders(handler: MessageHandler): void {
+    if (!this.wsClient) {
+      throw new Error('WebSocket not connected. Call connectWebSocket() first.');
+    }
+    if (!this.auth) {
+      throw new Error('Authentication required for order subscription.');
+    }
+    this.wsClient.subscribe(WebSocketChannel.ORDERS, handler);
+  }
+
+  /**
+   * Unsubscribe from order updates.
+   */
+  public unsubscribeOrders(handler?: MessageHandler): void {
+    if (this.wsClient) {
+      this.wsClient.unsubscribe(WebSocketChannel.ORDERS, handler);
+    }
+  }
+
+  /**
+   * Subscribe to real-time position updates (requires authentication).
+   *
+   * @param handler - Callback function for position updates
+   *
+   * @example
+   * ```typescript
+   * client.subscribePositions((position) => {
+   *   console.log(`Position ${position.market}: ${position.size} @ ${position.entryPrice}`);
+   * });
+   * ```
+   */
+  public subscribePositions(handler: MessageHandler): void {
+    if (!this.wsClient) {
+      throw new Error('WebSocket not connected. Call connectWebSocket() first.');
+    }
+    if (!this.auth) {
+      throw new Error('Authentication required for position subscription.');
+    }
+    this.wsClient.subscribe(WebSocketChannel.POSITIONS, handler);
+  }
+
+  /**
+   * Unsubscribe from position updates.
+   */
+  public unsubscribePositions(handler?: MessageHandler): void {
+    if (this.wsClient) {
+      this.wsClient.unsubscribe(WebSocketChannel.POSITIONS, handler);
+    }
+  }
+
+  /**
+   * Check if WebSocket is connected.
+   */
+  public get isWebSocketConnected(): boolean {
+    return this.wsClient?.connected ?? false;
   }
 }

@@ -103,14 +103,20 @@ const market = await client.getMarket('BTC-USD.P');
 // Get order book
 const orderBook = await client.getOrderBook('BTC-USD.P', 20);
 
-// Get ticker
-const ticker = await client.getTicker('BTC-USD.P');
+// Get latest price (ticker not available for perps)
+const trades = await client.getTrades('BTC-USD.P', 1);
+const latestPrice = trades[0]?.price;
+
+// Get bid/ask from order book
+const orderBook = await client.getOrderBook('BTC-USD.P', 1);
+const bestBid = orderBook.bids[0]?.[0];
+const bestAsk = orderBook.asks[0]?.[0];
 
 // Get recent trades
-const trades = await client.getTrades('BTC-USD.P', 100);
+const recentTrades = await client.getTrades('BTC-USD.P', 100);
 
-// Get funding rates
-const fundingRates = await client.getFundingRates('BTC-USD.P', 24);
+// Get funding rate (single market only)
+const fundingRate = await client.getFundingRates('BTC-USD.P');
 ```
 
 ### Trading
@@ -185,6 +191,41 @@ const balance = await client.getBalance();
 console.log(`Total balance: ${balance.total}`);
 console.log(`Available margin: ${balance.availableMargin}`);
 console.log(`Unrealized PnL: ${balance.unrealizedPnl}`);
+```
+
+### WebSocket Streaming (v0.4.0+)
+
+Real-time data streaming is now supported via WebSocket:
+
+```typescript
+// Connect to WebSocket
+await client.connectWebSocket();
+
+// Subscribe to real-time trades
+client.subscribeTrades('BTC-USD.P', (trade) => {
+  console.log(`Trade: ${trade.size} @ ${trade.price}`);
+});
+
+// Subscribe to order book updates
+client.subscribeOrderBook('BTC-USD.P', (book) => {
+  console.log(`Best bid: ${book.bids[0][0]}, Best ask: ${book.asks[0][0]}`);
+});
+
+// Subscribe to your orders (requires auth)
+client.subscribeOrders((order) => {
+  console.log(`Order ${order.id}: ${order.status}`);
+});
+
+// Subscribe to position updates (requires auth)
+client.subscribePositions((position) => {
+  console.log(`Position ${position.market}: ${position.size}`);
+});
+
+// Unsubscribe when done
+client.unsubscribeTrades('BTC-USD.P');
+
+// Disconnect WebSocket
+client.disconnectWebSocket();
 ```
 
 ## Environments
@@ -263,6 +304,31 @@ Integration tests make real API calls and require valid test credentials:
    ```
 
 **Note:** Integration tests will create and cancel real orders (far from market price). Use test/sandbox credentials when possible.
+
+## Known Limitations
+
+### Current Limitations (v0.4.0)
+
+- **No Ticker Endpoint**: The `/v1/ticker` endpoint is only available for spot markets. For perpetuals, use `getLatestPrice()` or `getBidAsk()` helper methods.
+- **No Historical OHLCV**: Candlestick/OHLCV data endpoints are not available.
+- **Rate Limiting**: No built-in rate limit tracking. Implement your own throttling for production use.
+- **WebSocket Channels**: Limited to trades, orderbook, orders, and positions. Market data aggregation channels may be added in future versions.
+
+### Workarounds
+
+```typescript
+// Getting current price (since ticker is not available)
+const trades = await client.getTrades('BTC-USD.P', 1);
+const currentPrice = trades[0]?.price;
+
+// Getting bid/ask spread
+const orderBook = await client.getOrderBook('BTC-USD.P', 1);
+const spread = {
+  bid: orderBook.bids[0]?.[0],
+  ask: orderBook.asks[0]?.[0],
+  spread: Number(orderBook.asks[0]?.[0]) - Number(orderBook.bids[0]?.[0])
+};
+```
 
 ## Examples
 
