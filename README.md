@@ -223,8 +223,14 @@ The client automatically handles rate limiting with exponential backoff. If you 
 # Install dependencies
 pnpm install
 
-# Run tests
+# Run unit tests only
 pnpm test
+
+# Run integration tests (requires API credentials - see below)
+pnpm test:integration
+
+# Run all tests
+pnpm test:all
 
 # Build
 pnpm build
@@ -235,6 +241,28 @@ pnpm lint
 # Type check
 pnpm typecheck
 ```
+
+### Running Integration Tests
+
+Integration tests make real API calls and require valid test credentials:
+
+1. Copy the environment template:
+   ```bash
+   cp .env.test.example .env.test
+   ```
+
+2. Add your test API credentials to `.env.test`:
+   ```env
+   ENCLAVE_TEST_API_KEY=your_test_api_key
+   ENCLAVE_TEST_API_SECRET=your_test_api_secret
+   ```
+
+3. Run the integration tests:
+   ```bash
+   pnpm test:integration
+   ```
+
+**Note:** Integration tests will create and cancel real orders (far from market price). Use test/sandbox credentials when possible.
 
 ## Examples
 

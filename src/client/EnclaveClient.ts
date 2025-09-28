@@ -13,7 +13,6 @@ import {
   Environment,
   FundingRate,
   Market,
-  MarketsResponse,
   Order,
   OrderBook,
   OrderSide,
@@ -27,6 +26,8 @@ import {
 } from '../types';
 import { HmacAuth } from './auth/HmacAuth';
 import { roundDown } from '../utils/rounding';
+import { ApiMarketsResponse, ApiTrade, ApiOrderBook } from '../types/api-responses';
+import { adaptMarketsResponse, adaptTrade, adaptOrderBook } from '../utils/adapters';
 
 export class EnclaveClient {
   private readonly baseUrl: string;
@@ -182,8 +183,8 @@ export class EnclaveClient {
       return this.marketsCache;
     }
 
-    const response = await this.requestWithWrapper<MarketsResponse>('GET', '/v1/markets');
-    const markets = response.perps.tradingPairs;
+    const response = await this.requestWithWrapper<ApiMarketsResponse>('GET', '/v1/markets');
+    const markets = adaptMarketsResponse(response);
     this.marketsCache = markets;
     this.marketsCacheTime = Date.now();
     return markets;
@@ -516,12 +517,14 @@ export class EnclaveClient {
    *
    * @example
    * ```typescript
-   * const rates = await client.getFundingRates('BTC-USD.P');
+   * const fundingRate = await client.getFundingRates('BTC-USD.P');
+   * console.log(`Current rate: ${fundingRate.rate}`);
+   * console.log(`Interval ends: ${fundingRate.intervalEnds}`);
    * ```
    */
-  public async getFundingRates(market: string): Promise<FundingRate[]> {
-    // API doesn't support limit parameter
-    return this.requestWithWrapper<FundingRate[]>(
+  public async getFundingRates(market: string): Promise<FundingRate> {
+    // API returns a single funding rate object, not an array
+    return this.requestWithWrapper<FundingRate>(
       'GET',
       `/v1/perps/funding_rates?market=${market}`,
     );
@@ -542,7 +545,11 @@ export class EnclaveClient {
   public async getTrades(market?: string, limit = 100): Promise<Trade[]> {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (market) params.append('market', market);
-    return this.requestWithWrapper<Trade[]>('GET', `/v1/perps/trades?${params.toString()}`);
+    const response = await this.requestWithWrapper<ApiTrade[]>(
+      'GET',
+      `/v1/perps/trades?${params.toString()}`,
+    );
+    return response.map(adaptTrade);
   }
 
   /**
@@ -565,7 +572,11 @@ export class EnclaveClient {
     if (depth) {
       params.append('depth', depth.toString());
     }
-    return this.requestWithWrapper<OrderBook>('GET', `/v1/perps/depth?${params.toString()}`);
+    const response = await this.requestWithWrapper<ApiOrderBook>(
+      'GET',
+      `/v1/perps/depth?${params.toString()}`,
+    );
+    return adaptOrderBook(response);
   }
 
   /**

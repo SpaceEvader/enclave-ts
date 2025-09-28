@@ -130,8 +130,11 @@ export interface Balance {
 export interface FundingRate {
   market: string;
   rate: string;
-  timestamp: number;
-  nextFundingTime: number;
+  intervalEnds: string;
+  premiums: Array<{
+    timestamp: string;
+    premium: string;
+  }>;
 }
 
 export interface Trade {
@@ -258,3 +261,6 @@ export const WS_URLS: Record<Environment, string> = {
   [Environment.SANDBOX]: 'wss://api-sandbox.enclave.market/ws',
   [Environment.SANDBOX_PERMISSIONLESS]: 'wss://api-sandbox.enclave.trade/ws',
 };
+
+// Re-export API response types
+export * from './api-responses';
