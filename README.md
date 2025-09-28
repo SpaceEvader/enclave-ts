@@ -1,6 +1,8 @@
 # Enclave Markets TypeScript Client
 
-A TypeScript/JavaScript client library for the [Enclave Markets](https://enclave.trade/) perpetual futures DEX API.
+A TypeScript/JavaScript client library for the [Enclave Markets](https://enclave.trade?ref=spaced) perpetual futures DEX API.
+
+> 💡 **New to Enclave?** [Sign up using referral code: spaced](https://enclave.trade?ref=spaced)
 
 ## Features
 
@@ -21,7 +23,17 @@ pnpm add @enclave-markets/client
 yarn add @enclave-markets/client
 ```
 
-## Quick Start
+## Getting Started with Enclave
+
+### 1. Create an Account
+
+First, you'll need an Enclave account. [Sign up here using referral code: spaced](https://enclave.trade?ref=spaced)
+
+### 2. Get API Credentials
+
+After signing up, generate your API credentials from the Enclave dashboard.
+
+### 3. Quick Start
 
 ```typescript
 import { EnclaveClient, Environment, OrderSide } from '@enclave-markets/client';

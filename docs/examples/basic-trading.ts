@@ -1,3 +1,15 @@
+/**
+ * Basic Trading Example for Enclave Markets
+ *
+ * This example demonstrates how to use the Enclave Markets TypeScript client
+ * to interact with the perpetual futures DEX.
+ *
+ * To get started:
+ * 1. Sign up at https://enclave.trade?ref=spaced
+ * 2. Generate API credentials from the dashboard
+ * 3. Set ENCLAVE_API_KEY and ENCLAVE_API_SECRET environment variables
+ */
+
 import { EnclaveClient, Environment, OrderSide, OrderType } from '../../src';
 import Decimal from 'decimal.js';
 
