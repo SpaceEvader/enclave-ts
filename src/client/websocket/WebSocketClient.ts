@@ -19,12 +19,12 @@ export interface WebSocketConfig {
 export interface WebSocketMessage {
   channel: string;
   type: string;
-  data: any;
+  data: unknown;
   sequence?: number;
   timestamp?: number;
 }
 
-export type MessageHandler = (data: any) => void;
+export type MessageHandler = (data: unknown) => void;
 
 export interface Subscription {
   channel: string;
@@ -62,11 +62,11 @@ export class WebSocketClient extends EventEmitter {
 
     this.config = {
       auth: config.auth,
-      environment: config.environment || Environment.PROD_PERMISSIONLESS,
-      debug: config.debug || false,
-      reconnect: config.reconnect !== false,
-      reconnectDelay: config.reconnectDelay || 5000,
-      maxReconnectAttempts: config.maxReconnectAttempts || 10,
+      environment: config.environment ?? Environment.PROD_PERMISSIONLESS,
+      debug: config.debug ?? false,
+      reconnect: config.reconnect ?? true,
+      reconnectDelay: config.reconnectDelay ?? 5000,
+      maxReconnectAttempts: config.maxReconnectAttempts ?? 10,
     };
   }
 
@@ -75,7 +75,7 @@ export class WebSocketClient extends EventEmitter {
    */
   public async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const environment = this.config.environment || Environment.PROD_PERMISSIONLESS;
+      const environment = this.config.environment ?? Environment.PROD_PERMISSIONLESS;
       const wsUrl = WS_URLS[environment];
 
       if (!wsUrl) {
@@ -111,7 +111,18 @@ export class WebSocketClient extends EventEmitter {
 
       this.ws.on('message', (data: WebSocket.Data) => {
         try {
-          const message = JSON.parse(data.toString()) as WebSocketMessage;
+          let strData: string;
+          if (typeof data === 'string') {
+            strData = data;
+          } else if (Buffer.isBuffer(data)) {
+            strData = data.toString('utf8');
+          } else if (data instanceof ArrayBuffer) {
+            strData = Buffer.from(data).toString('utf8');
+          } else {
+            // Array of Buffers
+            strData = Buffer.concat(data as Buffer[]).toString('utf8');
+          }
+          const message = JSON.parse(strData) as WebSocketMessage;
           this.handleMessage(message);
         } catch (error) {
           if (this.config.debug) {
@@ -137,7 +148,10 @@ export class WebSocketClient extends EventEmitter {
         this.emit('disconnected', { code, reason });
 
         // Attempt reconnection if enabled
-        if (this.config.reconnect && this.reconnectAttempts < (this.config.maxReconnectAttempts || 10)) {
+        if (
+          this.config.reconnect &&
+          this.reconnectAttempts < (this.config.maxReconnectAttempts ?? 10)
+        ) {
           this.scheduleReconnect();
         }
       });
@@ -215,7 +229,7 @@ export class WebSocketClient extends EventEmitter {
   /**
    * Send a message to the server
    */
-  private send(message: any): void {
+  private send(message: Record<string, unknown>): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
       if (this.config.debug) {
@@ -246,7 +260,7 @@ export class WebSocketClient extends EventEmitter {
    * Send subscription message
    */
   private sendSubscribe(channel: WebSocketChannel, market?: string): void {
-    const message: any = {
+    const message: Record<string, unknown> = {
       op: 'subscribe',
       channel,
     };
@@ -262,7 +276,7 @@ export class WebSocketClient extends EventEmitter {
    * Send unsubscription message
    */
   private sendUnsubscribe(channel: WebSocketChannel, market?: string): void {
-    const message: any = {
+    const message: Record<string, unknown> = {
       op: 'unsubscribe',
       channel,
     };
@@ -294,14 +308,15 @@ export class WebSocketClient extends EventEmitter {
     }
 
     if (message.type === 'error') {
-      this.emit('error', new Error(message.data?.message || 'Unknown error'));
+      const errorMessage = (message.data as { message?: string })?.message ?? 'Unknown error';
+      this.emit('error', new Error(errorMessage));
       return;
     }
 
     // Route message to channel handlers
     const key = this.getSubscriptionKey(
       message.channel as WebSocketChannel,
-      message.data?.market,
+      (message.data as { market?: string })?.market,
     );
     const handlers = this.subscriptions.get(key);
 
@@ -374,7 +389,8 @@ export class WebSocketClient extends EventEmitter {
    */
   private scheduleReconnect(): void {
     this.reconnectAttempts++;
-    const delay = (this.config.reconnectDelay || 5000) * Math.pow(2, Math.min(this.reconnectAttempts - 1, 5));
+    const delay =
+      (this.config.reconnectDelay ?? 5000) * Math.pow(2, Math.min(this.reconnectAttempts - 1, 5));
 
     if (this.config.debug) {
       console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);

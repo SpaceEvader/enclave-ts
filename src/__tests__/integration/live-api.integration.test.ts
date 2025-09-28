@@ -31,7 +31,7 @@ describe('Live API Integration Tests', () => {
 
   const apiKey = process.env.ENCLAVE_TEST_API_KEY!;
   const apiSecret = process.env.ENCLAVE_TEST_API_SECRET!;
-  const testMarket = process.env.ENCLAVE_TEST_MARKET || 'BTC-USD.P';
+  const testMarket = process.env.ENCLAVE_TEST_MARKET ?? 'BTC-USD.P';
 
   let publicClient: EnclaveClient;
   let authenticatedClient: EnclaveClient;
@@ -69,7 +69,7 @@ describe('Live API Integration Tests', () => {
       expect(firstMarket).toHaveProperty('maxLeverage');
 
       // Find BTC market for reference
-      const btcMarket = markets.find(m => m.market === 'BTC-USD.P');
+      const btcMarket = markets.find((m) => m.market === 'BTC-USD.P');
       expect(btcMarket).toBeDefined();
       if (btcMarket) {
         console.log('BTC Market Info:', {
@@ -158,7 +158,7 @@ describe('Live API Integration Tests', () => {
 
     test('GET /v1/ticker - should throw informative error for perps', async () => {
       await expect(publicClient.getTicker(testMarket)).rejects.toThrow(
-        'Ticker endpoint is not available for perpetual markets'
+        'Ticker endpoint is not available for perpetual markets',
       );
     });
   });
@@ -252,7 +252,7 @@ describe('Live API Integration Tests', () => {
 
       // Get market info to find correct minimum size
       const markets = await authenticatedClient.getMarkets();
-      const marketInfo = markets.find(m => m.market === testMarket);
+      const marketInfo = markets.find((m) => m.market === testMarket);
 
       if (!marketInfo) {
         console.log('Market info not found for', testMarket);
@@ -276,7 +276,7 @@ describe('Live API Integration Tests', () => {
         OrderSide.BUY,
         orderSize,
         orderPrice,
-        { clientOrderId: `test-${Date.now()}` }
+        { clientOrderId: `test-${Date.now()}` },
       );
 
       expect(order).toBeDefined();
@@ -288,7 +288,7 @@ describe('Live API Integration Tests', () => {
       console.log('Order created:', { id: order.id, status: order.status });
 
       // Give the order a moment to settle
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Cancel the order
       const cancelResult = await authenticatedClient.cancelOrder(order.id);
@@ -298,7 +298,7 @@ describe('Live API Integration Tests', () => {
 
       // Verify order is cancelled
       const orders = await authenticatedClient.getOrders();
-      const foundOrder = orders.find(o => o.id === order.id);
+      const foundOrder = orders.find((o) => o.id === order.id);
       expect(foundOrder).toBeUndefined(); // Should not be in open orders
     });
   });

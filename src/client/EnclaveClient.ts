@@ -527,10 +527,7 @@ export class EnclaveClient {
    */
   public async getFundingRates(market: string): Promise<FundingRate> {
     // API returns a single funding rate object, not an array
-    return this.requestWithWrapper<FundingRate>(
-      'GET',
-      `/v1/perps/funding_rates?market=${market}`,
-    );
+    return this.requestWithWrapper<FundingRate>('GET', `/v1/perps/funding_rates?market=${market}`);
   }
 
   /**

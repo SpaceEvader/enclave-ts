@@ -9,7 +9,7 @@ export interface ApiMarketsResponse {
     tradingPairs: ApiSpotMarket[];
   };
   cross: {
-    tradingPairs: any[];
+    tradingPairs: unknown[];
   };
   perps: {
     tradingPairs: ApiPerpsMarket[];

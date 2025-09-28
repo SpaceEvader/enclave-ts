@@ -3,12 +3,7 @@
  */
 
 import { Market, Trade, OrderBook, OrderSide } from '../types';
-import {
-  ApiPerpsMarket,
-  ApiTrade,
-  ApiOrderBook,
-  ApiMarketsResponse,
-} from '../types/api-responses';
+import { ApiPerpsMarket, ApiTrade, ApiOrderBook, ApiMarketsResponse } from '../types/api-responses';
 
 /**
  * Converts API perps market to clean Market type
