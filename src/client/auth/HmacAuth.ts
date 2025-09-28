@@ -52,6 +52,9 @@ export class HmacAuth {
       return false;
     }
 
-    return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'));
+    return crypto.timingSafeEqual(
+      Buffer.from(signature, 'hex'),
+      Buffer.from(expectedSignature, 'hex'),
+    );
   }
 }
