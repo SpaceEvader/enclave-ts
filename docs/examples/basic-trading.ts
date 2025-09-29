@@ -5,11 +5,15 @@
  * to interact with the perpetual futures DEX.
  *
  * To get started:
- * 1. Sign up at https://enclave.trade?ref=spaced
- * 2. Generate API credentials from the dashboard
- * 3. Set ENCLAVE_API_KEY and ENCLAVE_API_SECRET environment variables
+ * 1. Install the package: npm install enclave-ts
+ * 2. Sign up at https://enclave.trade?ref=spaced
+ * 3. Generate API credentials from the dashboard
+ * 4. Set ENCLAVE_API_KEY and ENCLAVE_API_SECRET environment variables
  */
 
+// When using npm package:
+// import { EnclaveClient, Environment, OrderSide, OrderType } from 'enclave-ts';
+// For local development:
 import { EnclaveClient, Environment, OrderSide, OrderType } from '../../src';
 import Decimal from 'decimal.js';
 

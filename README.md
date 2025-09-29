@@ -1,4 +1,9 @@
-# Enclave Markets TypeScript Client
+# enclave-ts
+
+[![npm version](https://img.shields.io/npm/v/enclave-ts.svg)](https://www.npmjs.com/package/enclave-ts)
+[![npm downloads](https://img.shields.io/npm/dm/enclave-ts.svg)](https://www.npmjs.com/package/enclave-ts)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
 
 A TypeScript/JavaScript client library for the [Enclave Markets](https://enclave.trade?ref=spaced) perpetual futures DEX API.
 
@@ -7,20 +12,22 @@ A TypeScript/JavaScript client library for the [Enclave Markets](https://enclave
 ## Features
 
 - 🔐 **Secure Authentication**: HMAC-SHA256 request signing
-- 📦 **Complete API Coverage**: All endpoints implemented
+- 📦 **Complete API Coverage**: All REST endpoints implemented
+- 🚀 **WebSocket Support**: Real-time data streaming for trades, orderbook, positions
 - 🔄 **Auto-retry Logic**: Built-in exponential backoff
 - 📝 **TypeScript Support**: Full type definitions included
-- 🧪 **Well Tested**: Comprehensive test suite
+- 🧪 **Well Tested**: Unit and integration test coverage
 - 📚 **Extensive Documentation**: Detailed JSDoc comments and examples
+- 🛠️ **Helper Methods**: Convenient `getLatestPrice()` and `getBidAsk()` utilities
 
 ## Installation
 
 ```bash
-npm install @enclave-markets/client
+npm install enclave-ts
 # or
-pnpm add @enclave-markets/client
+pnpm add enclave-ts
 # or
-yarn add @enclave-markets/client
+yarn add enclave-ts
 ```
 
 ## Getting Started with Enclave
@@ -36,7 +43,7 @@ After signing up, generate your API credentials from the Enclave dashboard.
 ### 3. Quick Start
 
 ```typescript
-import { EnclaveClient, Environment, OrderSide } from '@enclave-markets/client';
+import { EnclaveClient, Environment, OrderSide } from 'enclave-ts';
 import Decimal from 'decimal.js';
 
 // Initialize the client
@@ -103,14 +110,12 @@ const market = await client.getMarket('BTC-USD.P');
 // Get order book
 const orderBook = await client.getOrderBook('BTC-USD.P', 20);
 
-// Get latest price (ticker not available for perps)
-const trades = await client.getTrades('BTC-USD.P', 1);
-const latestPrice = trades[0]?.price;
+// Get latest price using helper method
+const latestPrice = await client.getLatestPrice('BTC-USD.P');
 
-// Get bid/ask from order book
-const orderBook = await client.getOrderBook('BTC-USD.P', 1);
-const bestBid = orderBook.bids[0]?.[0];
-const bestAsk = orderBook.asks[0]?.[0];
+// Get bid/ask spread using helper method
+const { bid, ask, spread } = await client.getBidAsk('BTC-USD.P');
+console.log(`Bid: ${bid}, Ask: ${ask}, Spread: ${spread}`);
 
 // Get recent trades
 const recentTrades = await client.getTrades('BTC-USD.P', 100);
