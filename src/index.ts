@@ -8,3 +8,4 @@ export {
 } from './client/websocket/WebSocketClient';
 export * from './types';
 export * from './utils/rounding';
+export { EnclaveApiError } from './utils/errors';

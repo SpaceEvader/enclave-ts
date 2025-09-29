@@ -4,7 +4,6 @@ import { URL } from 'url';
 import {
   API_URLS,
   ApiBalance,
-  ApiError,
   ApiWrapper,
   Balance,
   ClientConfig,
@@ -26,6 +25,7 @@ import {
 } from '../types';
 import { HmacAuth } from './auth/HmacAuth';
 import { roundDown } from '../utils/rounding';
+import { EnclaveApiError } from '../utils/errors';
 import { ApiMarketsResponse, ApiTrade, ApiOrderBook } from '../types/api-responses';
 import { adaptMarketsResponse, adaptTrade, adaptOrderBook } from '../utils/adapters';
 import { WebSocketClient, WebSocketChannel, MessageHandler } from './websocket/WebSocketClient';
@@ -59,7 +59,7 @@ export class EnclaveClient {
   private async requestWithWrapper<T>(method: string, path: string, body?: unknown): Promise<T> {
     const response = await this.request<ApiWrapper<T>>(method, path, body);
     if (!response.success) {
-      throw new Error(response.error ?? 'Request failed');
+      throw new EnclaveApiError(response.error ?? 'Request failed', path, method);
     }
     return response.result;
   }
@@ -104,7 +104,7 @@ export class EnclaveClient {
         res.on('end', () => {
           try {
             if (!res.statusCode) {
-              throw new Error('No status code received');
+              throw new EnclaveApiError('No status code received', path, method);
             }
 
             if (res.statusCode === 429 && attempt <= this.maxRetries) {
@@ -124,15 +124,23 @@ export class EnclaveClient {
             if (res.statusCode >= 200 && res.statusCode < 300) {
               resolve(parsed as T);
             } else {
-              const error: ApiError = (parsed as { error?: ApiError }).error ?? {
-                code: `HTTP_${res.statusCode}`,
-                message: (parsed as { message?: string }).message ?? data ?? 'Request failed',
-                details: parsed,
-              };
-              reject(error);
+              const errorMessage =
+                (parsed as { error?: string }).error ??
+                (parsed as { message?: string }).message ??
+                data ??
+                'Request failed';
+              reject(new EnclaveApiError(errorMessage, path, method, res.statusCode, data));
             }
           } catch (e) {
-            reject(new Error(`Failed to parse response: ${String(e)}`));
+            reject(
+              new EnclaveApiError(
+                `Failed to parse response: ${String(e)}`,
+                path,
+                method,
+                res.statusCode,
+                data,
+              ),
+            );
           }
         });
       });
@@ -507,6 +515,46 @@ export class EnclaveClient {
       totalPositionValue: apiBalance.totalPositionValue,
       totalOrderMargin: apiBalance.totalOrderMargin,
     };
+  }
+
+  /**
+   * Gets the available margin balance as a Decimal for easy calculations.
+   * Convenience method that fetches balance and returns available margin.
+   *
+   * @returns Available margin as a Decimal
+   *
+   * @example
+   * ```typescript
+   * const available = await client.getAvailableBalance();
+   * console.log(`Available margin: ${available.toFixed(2)} USDT`);
+   * ```
+   */
+  public async getAvailableBalance(): Promise<Decimal> {
+    const balance = await this.getBalance();
+    return new Decimal(balance.availableMargin);
+  }
+
+  /**
+   * Checks if the account has enough margin for a trade.
+   * Convenience method for margin validation.
+   *
+   * @param requiredMargin - Amount of margin required
+   * @returns True if account has sufficient margin
+   *
+   * @example
+   * ```typescript
+   * const orderValue = new Decimal(100); // 100 USDT
+   * if (await client.hasEnoughMargin(orderValue)) {
+   *   await client.createLimitOrder(...);
+   * } else {
+   *   console.log('Insufficient margin');
+   * }
+   * ```
+   */
+  public async hasEnoughMargin(requiredMargin: Decimal | number | string): Promise<boolean> {
+    const available = await this.getAvailableBalance();
+    const required = new Decimal(requiredMargin);
+    return available.greaterThanOrEqualTo(required);
   }
 
   /**
